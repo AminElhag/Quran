@@ -1,0 +1,33 @@
+package com.quran.app.data
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class Surah(
+    val number: Int,
+    val name: String,
+    val englishName: String,
+    val englishNameTranslation: String,
+    val numberOfAyahs: Int,
+    val revelationType: String,
+    val ayahs: List<Ayah> = emptyList()
+)
+
+@Serializable
+data class Ayah(
+    val number: Int,
+    val text: String,
+    val numberInSurah: Int,
+    val juz: Int,
+    val page: Int
+)
+
+@Serializable
+data class QuranData(
+    val surahs: List<Surah>
+)
+
+enum class RevelationType(val arabic: String) {
+    MECCAN("مكية"),
+    MEDINAN("مدنية")
+}
