@@ -6,6 +6,10 @@ import kotlinx.serialization.json.Json
 expect class Settings() {
     fun putString(key: String, value: String)
     fun getString(key: String, defaultValue: String): String
+    fun putInt(key: String, value: Int)
+    fun getInt(key: String, defaultValue: Int): Int
+    fun putBoolean(key: String, value: Boolean)
+    fun getBoolean(key: String, defaultValue: Boolean): Boolean
     fun remove(key: String)
     fun clear()
 }
@@ -60,5 +64,44 @@ class ReadingPositionManager(private val settings: Settings) {
 
     fun clearPageReadingPosition() {
         settings.remove(KEY_PAGE_READING_POSITION)
+    }
+}
+
+class TextSizeManager(private val settings: Settings) {
+    companion object {
+        private const val KEY_TEXT_SIZE_LEVEL = "text_size_level"
+        private const val KEY_FULL_PAGE_MODE = "full_page_mode"
+        const val MIN_SIZE_LEVEL = 1
+        const val MAX_SIZE_LEVEL = 5
+        const val DEFAULT_SIZE_LEVEL = 3
+    }
+
+    fun saveTextSizeLevel(level: Int) {
+        val validLevel = level.coerceIn(MIN_SIZE_LEVEL, MAX_SIZE_LEVEL)
+        settings.putInt(KEY_TEXT_SIZE_LEVEL, validLevel)
+    }
+
+    fun getTextSizeLevel(): Int {
+        return settings.getInt(KEY_TEXT_SIZE_LEVEL, DEFAULT_SIZE_LEVEL)
+    }
+
+    fun saveFullPageMode(enabled: Boolean) {
+        settings.putBoolean(KEY_FULL_PAGE_MODE, enabled)
+    }
+
+    fun isFullPageModeEnabled(): Boolean {
+        return settings.getBoolean(KEY_FULL_PAGE_MODE, false)
+    }
+
+    // Helper function to get font size multiplier based on level
+    fun getTextSizeMultiplier(level: Int = getTextSizeLevel()): Float {
+        return when (level) {
+            1 -> 0.75f  // Small
+            2 -> 0.875f // Medium-Small
+            3 -> 1.0f   // Normal (default)
+            4 -> 1.125f // Medium-Large
+            5 -> 1.25f  // Large
+            else -> 1.0f
+        }
     }
 }

@@ -1,8 +1,15 @@
 package com.quran.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -13,6 +20,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.TextDecrease
+import androidx.compose.material.icons.filled.TextIncrease
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +54,7 @@ fun PageReadingScreen(
     initialPage: Int = 1,
     repository: QuranRepository,
     readingPositionManager: ReadingPositionManager,
+    textSizeManager: TextSizeManager,
     onBackClick: () -> Unit,
     onSurahListClick: () -> Unit
 ) {
@@ -51,6 +64,12 @@ fun PageReadingScreen(
     val scope = rememberCoroutineScope()
 
     var startPage by remember { mutableStateOf(initialPage) }
+
+    // Text size and full page mode state
+    var textSizeLevel by remember { mutableStateOf(textSizeManager.getTextSizeLevel()) }
+    var isFullPageMode by remember { mutableStateOf(textSizeManager.isFullPageModeEnabled()) }
+    var showControls by remember { mutableStateOf(!isFullPageMode) }
+    var showSettingsMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val savedPosition = readingPositionManager.getLastPageReadingPosition()
@@ -83,111 +102,210 @@ fun PageReadingScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "صفحة ${pagerState.currentPage + 1}",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "رجوع"
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onSurahListClick) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "قائمة السور"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
-        },
-        bottomBar = {
-            PageNavigationBar(
-                currentPage = pagerState.currentPage + 1,
-                totalPages = totalPages,
-                onPageSelected = { page ->
-                    scope.launch {
-                        pagerState.animateScrollToPage(page - 1)
-                    }
-                },
-                onPreviousPage = {
-                    scope.launch {
-                        if (pagerState.currentPage > 0) {
-                            pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                        }
-                    }
-                },
-                onNextPage = {
-                    scope.launch {
-                        if (pagerState.currentPage < totalPages - 1) {
-                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                        }
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+    // Calculate text size multiplier
+    val textSizeMultiplier = textSizeManager.getTextSizeMultiplier(textSizeLevel)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                AnimatedVisibility(
+                    visible = showControls,
+                    enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
                 ) {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "جاري تحميل الصفحات...",
-                        style = MaterialTheme.typography.bodyLarge
+                    TopAppBar(
+                        title = {
+                            Text(
+                                text = "صفحة ${pagerState.currentPage + 1}",
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBackClick) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "رجوع"
+                                )
+                            }
+                        },
+                        actions = {
+                            // Text size decrease button
+                            IconButton(
+                                onClick = {
+                                    if (textSizeLevel > TextSizeManager.MIN_SIZE_LEVEL) {
+                                        textSizeLevel--
+                                        textSizeManager.saveTextSizeLevel(textSizeLevel)
+                                    }
+                                },
+                                enabled = textSizeLevel > TextSizeManager.MIN_SIZE_LEVEL
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.TextDecrease,
+                                    contentDescription = "تصغير الخط"
+                                )
+                            }
+
+                            // Text size increase button
+                            IconButton(
+                                onClick = {
+                                    if (textSizeLevel < TextSizeManager.MAX_SIZE_LEVEL) {
+                                        textSizeLevel++
+                                        textSizeManager.saveTextSizeLevel(textSizeLevel)
+                                    }
+                                },
+                                enabled = textSizeLevel < TextSizeManager.MAX_SIZE_LEVEL
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.TextIncrease,
+                                    contentDescription = "تكبير الخط"
+                                )
+                            }
+
+                            // Full page mode toggle
+                            IconButton(
+                                onClick = {
+                                    isFullPageMode = !isFullPageMode
+                                    textSizeManager.saveFullPageMode(isFullPageMode)
+                                    if (isFullPageMode) {
+                                        showControls = false
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (isFullPageMode) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                    contentDescription = if (isFullPageMode) "إنهاء وضع الشاشة الكاملة" else "وضع الشاشة الكاملة"
+                                )
+                            }
+
+                            IconButton(onClick = onSurahListClick) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "قائمة السور"
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+                }
+            },
+            bottomBar = {
+                AnimatedVisibility(
+                    visible = showControls,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                ) {
+                    PageNavigationBar(
+                        currentPage = pagerState.currentPage + 1,
+                        totalPages = totalPages,
+                        onPageSelected = { page ->
+                            scope.launch {
+                                pagerState.animateScrollToPage(page - 1)
+                            }
+                        },
+                        onPreviousPage = {
+                            scope.launch {
+                                if (pagerState.currentPage > 0) {
+                                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                }
+                            }
+                        },
+                        onNextPage = {
+                            scope.launch {
+                                if (pagerState.currentPage < totalPages - 1) {
+                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                }
+                            }
+                        }
                     )
                 }
             }
-        } else {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                reverseLayout = true,
-                key = { it }
-            ) { pageIndex ->
-                val pageNumber = pageIndex + 1
-                val pageContent = pagesMap[pageNumber]
+        ) { paddingValues ->
+            val contentPadding = if (showControls) paddingValues else PaddingValues(0.dp)
 
-                if (pageContent != null) {
-                    TraditionalQuranPage(
-                        pageContent = pageContent,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "صفحة فارغة",
+                            text = "جاري تحميل الصفحات...",
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }
                 }
+            } else {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            if (isFullPageMode) {
+                                showControls = !showControls
+                            }
+                        },
+                    reverseLayout = true,
+                    key = { it }
+                ) { pageIndex ->
+                    val pageNumber = pageIndex + 1
+                    val pageContent = pagesMap[pageNumber]
+
+                    if (pageContent != null) {
+                        TraditionalQuranPage(
+                            pageContent = pageContent,
+                            textSizeMultiplier = textSizeMultiplier,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "صفحة فارغة",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Text size indicator (shown briefly when changed)
+        AnimatedVisibility(
+            visible = showControls && !isLoading,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 80.dp),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.9f),
+                shape = RoundedCornerShape(16.dp),
+                tonalElevation = 4.dp
+            ) {
+                Text(
+                    text = "حجم الخط: $textSizeLevel",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
             }
         }
     }
@@ -196,6 +314,7 @@ fun PageReadingScreen(
 @Composable
 private fun TraditionalQuranPage(
     pageContent: PageContent,
+    textSizeMultiplier: Float = 1.0f,
     modifier: Modifier = Modifier
 ) {
     val frameColor = Color(0xFF8B7355)
@@ -297,13 +416,16 @@ private fun TraditionalQuranPage(
                             lastSurahNumber = ayahWithSurah.surah.number
 
                             // Surah header with traditional styling
-                            OrnamentedSurahHeader(surah = ayahWithSurah.surah)
+                            OrnamentedSurahHeader(
+                                surah = ayahWithSurah.surah,
+                                textSizeMultiplier = textSizeMultiplier
+                            )
 
                             Spacer(modifier = Modifier.height(12.dp))
 
                             // Bismillah (except for At-Tawbah and Al-Fatiha)
                             if (ayahWithSurah.surah.number != 9 && ayahWithSurah.surah.number != 1) {
-                                TraditionalBismillah()
+                                TraditionalBismillah(textSizeMultiplier = textSizeMultiplier)
                                 Spacer(modifier = Modifier.height(16.dp))
                             }
                         }
@@ -312,6 +434,7 @@ private fun TraditionalQuranPage(
                     // Flowing Quranic text
                     FlowingQuranText(
                         ayahs = pageContent.ayahs,
+                        textSizeMultiplier = textSizeMultiplier,
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -326,7 +449,10 @@ private fun TraditionalQuranPage(
 }
 
 @Composable
-private fun OrnamentedSurahHeader(surah: Surah) {
+private fun OrnamentedSurahHeader(
+    surah: Surah,
+    textSizeMultiplier: Float = 1.0f
+) {
     val frameColor = Color(0xFF8B7355)
     val goldColor = Color(0xFFD4AF37)
 
@@ -381,7 +507,7 @@ private fun OrnamentedSurahHeader(surah: Surah) {
                 Text(
                     text = "سُورَةُ ${surah.name}",
                     style = QuranTextStyles.surahHeaderText.copy(
-                        fontSize = 22.sp,
+                        fontSize = (22 * textSizeMultiplier).sp,
                         color = Color(0xFF2D1810)
                     ),
                     textAlign = TextAlign.Center
@@ -392,7 +518,7 @@ private fun OrnamentedSurahHeader(surah: Surah) {
                     text = "${if (surah.revelationType == "Meccan") "مَكِّيَّة" else "مَدَنِيَّة"} - ${surah.numberOfAyahs} آية",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = Color(0xFF5D4E37),
-                        fontSize = 12.sp
+                        fontSize = (12 * textSizeMultiplier).sp
                     ),
                     textAlign = TextAlign.Center
                 )
@@ -402,7 +528,7 @@ private fun OrnamentedSurahHeader(surah: Surah) {
 }
 
 @Composable
-private fun TraditionalBismillah() {
+private fun TraditionalBismillah(textSizeMultiplier: Float = 1.0f) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -412,7 +538,7 @@ private fun TraditionalBismillah() {
         Text(
             text = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
             style = QuranTextStyles.mushafText.copy(
-                fontSize = 26.sp,
+                fontSize = (26 * textSizeMultiplier).sp,
                 color = Color(0xFF2D1810),
                 fontWeight = FontWeight.Normal
             ),
@@ -424,9 +550,12 @@ private fun TraditionalBismillah() {
 @Composable
 private fun FlowingQuranText(
     ayahs: List<AyahWithSurah>,
+    textSizeMultiplier: Float = 1.0f,
     modifier: Modifier = Modifier
 ) {
     val verseMarkerColor = Color(0xFF8B7355)
+    val baseFontSize = 24 * textSizeMultiplier
+    val markerFontSize = 20 * textSizeMultiplier
 
     // Build flowing text with all ayahs concatenated
     val annotatedText = buildAnnotatedString {
@@ -451,7 +580,7 @@ private fun FlowingQuranText(
             withStyle(
                 style = SpanStyle(
                     color = Color(0xFF2D1810),
-                    fontSize = 24.sp
+                    fontSize = baseFontSize.sp
                 )
             ) {
                 append(ayahWithSurah.ayah.text)
@@ -461,7 +590,7 @@ private fun FlowingQuranText(
             withStyle(
                 style = SpanStyle(
                     color = verseMarkerColor,
-                    fontSize = 20.sp,
+                    fontSize = markerFontSize.sp,
                     fontWeight = FontWeight.Bold
                 )
             ) {
@@ -472,7 +601,9 @@ private fun FlowingQuranText(
 
     Text(
         text = annotatedText,
-        style = QuranTextStyles.mushafText,
+        style = QuranTextStyles.mushafText.copy(
+            lineHeight = (48 * textSizeMultiplier).sp
+        ),
         textAlign = TextAlign.Justify,
         modifier = modifier
     )
