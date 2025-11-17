@@ -261,7 +261,8 @@ object TajweedParser {
     }
 
     /**
-     * Convert Tajweed segments to Compose AnnotatedString with colored styling
+     * Convert Tajweed segments to Compose AnnotatedString with colored styling.
+     * Uses addStyle with ranges to preserve Arabic character joining/shaping.
      */
     fun buildAnnotatedString(
         segments: List<TajweedSegment>,
@@ -269,6 +270,12 @@ object TajweedParser {
         defaultColor: Color = TajweedColors.defaultText
     ): AnnotatedString {
         return buildAnnotatedString {
+            // First, append all text as a single continuous string to preserve Arabic shaping
+            val fullText = segments.joinToString("") { it.text }
+            append(fullText)
+
+            // Then apply colors as overlays using addStyle with character ranges
+            var currentPosition = 0
             for (segment in segments) {
                 val color = if (segment.rule == TajweedRule.DEFAULT) {
                     defaultColor
@@ -276,14 +283,16 @@ object TajweedParser {
                     getTajweedColor(segment.rule)
                 }
 
-                withStyle(
+                addStyle(
                     style = SpanStyle(
                         color = color,
                         fontSize = fontSize
-                    )
-                ) {
-                    append(segment.text)
-                }
+                    ),
+                    start = currentPosition,
+                    end = currentPosition + segment.text.length
+                )
+
+                currentPosition += segment.text.length
             }
         }
     }

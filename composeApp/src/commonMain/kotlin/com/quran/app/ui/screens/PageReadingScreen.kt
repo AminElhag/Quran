@@ -611,9 +611,12 @@ private fun FlowingQuranText(
     val defaultTextColor = Color(0xFF2D1810)
 
     // Build flowing text with all ayahs concatenated
+    // Use addStyle with ranges to preserve Arabic character joining
     val annotatedText = buildAnnotatedString {
+        // First pass: build the complete text and collect style information
+        val styleRanges = mutableListOf<Triple<Int, Int, SpanStyle>>()
+        val textBuilder = StringBuilder()
         var lastSurahNumber = -1
-        var skipFirstAyahOfNewSurah = false
 
         ayahs.forEachIndexed { index, ayahWithSurah ->
             val isNewSurah = ayahWithSurah.ayah.numberInSurah == 1 &&
@@ -621,11 +624,10 @@ private fun FlowingQuranText(
 
             if (isNewSurah) {
                 lastSurahNumber = ayahWithSurah.surah.number
-                skipFirstAyahOfNewSurah = false
 
                 // Don't add separator if this is the first ayah on the page
                 if (index > 0) {
-                    append("\n\n")
+                    textBuilder.append("\n\n")
                 }
             }
 
@@ -639,37 +641,40 @@ private fun FlowingQuranText(
                     } else {
                         com.quran.app.tajweed.getTajweedColor(segment.rule)
                     }
-                    withStyle(
-                        style = SpanStyle(
-                            color = color,
-                            fontSize = baseFontSize.sp
-                        )
-                    ) {
-                        append(segment.text)
-                    }
+                    val startPos = textBuilder.length
+                    textBuilder.append(segment.text)
+                    styleRanges.add(Triple(startPos, textBuilder.length, SpanStyle(
+                        color = color,
+                        fontSize = baseFontSize.sp
+                    )))
                 }
             } else {
                 // Plain text without Tajweed styling
-                withStyle(
-                    style = SpanStyle(
-                        color = defaultTextColor,
-                        fontSize = baseFontSize.sp
-                    )
-                ) {
-                    append(ayahWithSurah.ayah.text)
-                }
+                val startPos = textBuilder.length
+                textBuilder.append(ayahWithSurah.ayah.text)
+                styleRanges.add(Triple(startPos, textBuilder.length, SpanStyle(
+                    color = defaultTextColor,
+                    fontSize = baseFontSize.sp
+                )))
             }
 
             // Add verse number marker
-            withStyle(
-                style = SpanStyle(
-                    color = verseMarkerColor,
-                    fontSize = markerFontSize.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            ) {
-                append(" ﴿${convertToArabicNumerals(ayahWithSurah.ayah.numberInSurah)}﴾ ")
-            }
+            val markerStartPos = textBuilder.length
+            val markerText = " ﴿${convertToArabicNumerals(ayahWithSurah.ayah.numberInSurah)}﴾ "
+            textBuilder.append(markerText)
+            styleRanges.add(Triple(markerStartPos, textBuilder.length, SpanStyle(
+                color = verseMarkerColor,
+                fontSize = markerFontSize.sp,
+                fontWeight = FontWeight.Bold
+            )))
+        }
+
+        // Append the complete text first to preserve Arabic shaping
+        append(textBuilder.toString())
+
+        // Apply all styles using ranges
+        for ((start, end, style) in styleRanges) {
+            addStyle(style, start, end)
         }
     }
 
