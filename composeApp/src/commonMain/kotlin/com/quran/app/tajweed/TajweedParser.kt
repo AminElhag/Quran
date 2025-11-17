@@ -65,6 +65,11 @@ object TajweedParser {
     // Madda above (آ)
     private const val MADDA = '\u0653'
 
+    // Vowel marks for Madd detection
+    private const val FATHA = '\u064E'
+    private const val DAMMA = '\u064F'
+    private const val KASRA = '\u0650'
+
     /**
      * Parse HTML-tagged Tajweed text into segments
      * Format: <tajweed class="rule">text</tajweed> or <span class="rule">text</span>
@@ -209,9 +214,33 @@ object TajweedParser {
                     }
                 }
             }
-            // Check for Madd (prolongation)
-            else if (maddLetters.contains(char) || char == SMALL_ALEF || char == MADDA) {
+            // Check for Madd (prolongation) - only when preceded by matching vowel
+            else if (char == SMALL_ALEF || char == MADDA) {
+                // Small alef and madda are always Madd markers
                 rule = TajweedRule.MADD_NORMAL
+            }
+            else if (maddLetters.contains(char) && i > 0) {
+                // Check if this is truly a Madd (prolongation vowel)
+                // Madd requires: ا after fatha, و after damma, ي after kasra
+                val prevChars = chars.subList(0, i)
+                var hasPrecedingVowel = false
+
+                // Look backwards for the vowel mark
+                for (j in prevChars.size - 1 downTo maxOf(0, prevChars.size - 3)) {
+                    val prevChar = prevChars[j]
+                    when (char) {
+                        'ا', 'ى' -> if (prevChar == FATHA) hasPrecedingVowel = true
+                        'و' -> if (prevChar == DAMMA) hasPrecedingVowel = true
+                        'ي' -> if (prevChar == KASRA) hasPrecedingVowel = true
+                    }
+                    // Stop if we hit another base letter
+                    if (prevChar.isArabicLetter()) break
+                }
+
+                if (hasPrecedingVowel) {
+                    rule = TajweedRule.MADD_NORMAL
+                }
+                // If not a true Madd, keep it as DEFAULT to preserve Arabic text shaping
             }
 
             // Add segment
