@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import org.jetbrains.compose.resources.ExperimentalResourceApi
-import quran.composeapp.generated.resources.Res
+import quranapp.composeapp.generated.resources.Res
 
 class QuranRepository {
     private var cachedQuranData: QuranData? = null
