@@ -3,6 +3,7 @@ package com.quran.app.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
@@ -19,6 +20,11 @@ import com.quran.app.data.Surah
 import com.quran.app.ui.components.SurahListItem
 import kotlinx.coroutines.flow.collectLatest
 
+enum class ReadingMode {
+    SURAH_SCROLL,  // Horizontal scroll between Surahs
+    PAGE_READING   // Traditional book/page reading
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SurahListScreen(
@@ -26,12 +32,14 @@ fun SurahListScreen(
     readingPositionManager: ReadingPositionManager,
     onSurahClick: (Int) -> Unit,
     onSearchClick: () -> Unit,
-    onPageReadingClick: (Int) -> Unit = {}
+    onPageReadingClick: (Int) -> Unit = {},
+    onSurahScrollClick: (Int) -> Unit = {}
 ) {
     var surahs by remember { mutableStateOf<List<Surah>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var lastReadingPosition by remember { mutableStateOf<ReadingPosition?>(null) }
     var lastReadSurah by remember { mutableStateOf<Surah?>(null) }
+    var selectedReadingMode by remember { mutableStateOf(ReadingMode.SURAH_SCROLL) }
 
     LaunchedEffect(Unit) {
         repository.getAllSurahs().collectLatest { surahList ->
@@ -75,7 +83,12 @@ fun SurahListScreen(
         floatingActionButton = {
             if (lastReadingPosition != null && lastReadSurah != null) {
                 ExtendedFloatingActionButton(
-                    onClick = { onSurahClick(lastReadingPosition!!.surahNumber) },
+                    onClick = {
+                        when (selectedReadingMode) {
+                            ReadingMode.SURAH_SCROLL -> onSurahScrollClick(lastReadingPosition!!.surahNumber)
+                            ReadingMode.PAGE_READING -> onSurahClick(lastReadingPosition!!.surahNumber)
+                        }
+                    },
                     icon = {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
@@ -140,11 +153,67 @@ fun SurahListScreen(
                     }
                 }
 
+                // Reading Mode Selector
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = "وضع القراءة",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SingleChoiceSegmentedButtonRow(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                SegmentedButton(
+                                    selected = selectedReadingMode == ReadingMode.SURAH_SCROLL,
+                                    onClick = { selectedReadingMode = ReadingMode.SURAH_SCROLL },
+                                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp),
+                                    colors = SegmentedButtonDefaults.colors(
+                                        activeContainerColor = MaterialTheme.colorScheme.primary,
+                                        activeContentColor = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                ) {
+                                    Text("تصفح السور")
+                                }
+                                SegmentedButton(
+                                    selected = selectedReadingMode == ReadingMode.PAGE_READING,
+                                    onClick = { selectedReadingMode = ReadingMode.PAGE_READING },
+                                    shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp),
+                                    colors = SegmentedButtonDefaults.colors(
+                                        activeContainerColor = MaterialTheme.colorScheme.primary,
+                                        activeContentColor = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                ) {
+                                    Text("قراءة الصفحات")
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Resume Reading Card
                 if (lastReadingPosition != null && lastReadSurah != null) {
                     item {
                         Card(
-                            onClick = { onSurahClick(lastReadingPosition!!.surahNumber) },
+                            onClick = {
+                                when (selectedReadingMode) {
+                                    ReadingMode.SURAH_SCROLL -> onSurahScrollClick(lastReadingPosition!!.surahNumber)
+                                    ReadingMode.PAGE_READING -> onSurahClick(lastReadingPosition!!.surahNumber)
+                                }
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -187,7 +256,12 @@ fun SurahListScreen(
                 items(surahs) { surah ->
                     SurahListItem(
                         surah = surah,
-                        onClick = { onSurahClick(surah.number) }
+                        onClick = {
+                            when (selectedReadingMode) {
+                                ReadingMode.SURAH_SCROLL -> onSurahScrollClick(surah.number)
+                                ReadingMode.PAGE_READING -> onSurahClick(surah.number)
+                            }
+                        }
                     )
                 }
             }

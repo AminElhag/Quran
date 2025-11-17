@@ -1,19 +1,26 @@
 package com.quran.app.ui.screens
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.quran.app.data.QuranRepository
 import com.quran.app.data.ReadingPosition
 import com.quran.app.data.ReadingPositionManager
@@ -57,6 +64,8 @@ fun SurahReadingScreen(
         } else null
     }
 
+    val coroutineScope = rememberCoroutineScope()
+
     // Save reading position when surah changes
     LaunchedEffect(pagerState.currentPage) {
         if (!isLoading && allSurahs.isNotEmpty()) {
@@ -97,6 +106,30 @@ fun SurahReadingScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
+        },
+        bottomBar = {
+            if (!isLoading && allSurahs.isNotEmpty()) {
+                SurahNavigationBar(
+                    currentSurahNumber = pagerState.currentPage + 1,
+                    totalSurahs = allSurahs.size,
+                    onPreviousSurah = {
+                        if (pagerState.currentPage < allSurahs.size - 1) {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            }
+                        }
+                    },
+                    onNextSurah = {
+                        if (pagerState.currentPage > 0) {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                            }
+                        }
+                    },
+                    canGoPrevious = pagerState.currentPage < allSurahs.size - 1,
+                    canGoNext = pagerState.currentPage > 0
+                )
+            }
         }
     ) { paddingValues ->
         if (isLoading) {
@@ -135,6 +168,86 @@ fun SurahReadingScreen(
                     surah = surah,
                     readingPositionManager = readingPositionManager,
                     isCurrentPage = pageIndex == pagerState.currentPage
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SurahNavigationBar(
+    currentSurahNumber: Int,
+    totalSurahs: Int,
+    onPreviousSurah: () -> Unit,
+    onNextSurah: () -> Unit,
+    canGoPrevious: Boolean,
+    canGoNext: Boolean
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 3.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Previous Surah button (left side - goes to higher number in RTL)
+            IconButton(
+                onClick = onPreviousSurah,
+                enabled = canGoPrevious
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "السورة السابقة",
+                    tint = if (canGoPrevious)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                )
+            }
+
+            // Progress indicator
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "$currentSurahNumber / $totalSurahs",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                // Progress bar
+                val progress by animateFloatAsState(
+                    targetValue = currentSurahNumber.toFloat() / totalSurahs.toFloat(),
+                    label = "surah_progress"
+                )
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
+
+            // Next Surah button (right side - goes to lower number in RTL)
+            IconButton(
+                onClick = onNextSurah,
+                enabled = canGoNext
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "السورة التالية",
+                    tint = if (canGoNext)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 )
             }
         }
