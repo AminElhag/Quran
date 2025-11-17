@@ -31,3 +31,10 @@ enum class RevelationType(val arabic: String) {
     MECCAN("مكية"),
     MEDINAN("مدنية")
 }
+
+@Serializable
+data class ReadingPosition(
+    val surahNumber: Int,
+    val ayahIndex: Int,
+    val timestamp: Long
+)
