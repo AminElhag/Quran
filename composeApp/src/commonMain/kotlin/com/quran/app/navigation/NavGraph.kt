@@ -49,7 +49,7 @@ fun QuranNavGraph(
                 repository = repository,
                 readingPositionManager = readingPositionManager,
                 onSurahClick = { surahNumber ->
-                    // Navigate to book/page reading style by default
+                    // Navigate to book/page reading style
                     scope.launch {
                         val pageNumber = repository.getPageForSurah(surahNumber).first()
                         navController.navigate(Screen.PageReading.createRoute(pageNumber))
@@ -60,6 +60,10 @@ fun QuranNavGraph(
                 },
                 onPageReadingClick = { pageNumber ->
                     navController.navigate(Screen.PageReading.createRoute(pageNumber))
+                },
+                onSurahScrollClick = { surahNumber ->
+                    // Navigate to horizontal scroll Surah reading
+                    navController.navigate(Screen.SurahReading.createRoute(surahNumber))
                 }
             )
         }
