@@ -15,6 +15,7 @@ class ReadingPositionManager(private val settings: Settings) {
 
     companion object {
         private const val KEY_READING_POSITION = "reading_position"
+        private const val KEY_PAGE_READING_POSITION = "page_reading_position"
     }
 
     fun saveReadingPosition(position: ReadingPosition) {
@@ -37,5 +38,27 @@ class ReadingPositionManager(private val settings: Settings) {
 
     fun clearReadingPosition() {
         settings.remove(KEY_READING_POSITION)
+    }
+
+    fun savePageReadingPosition(position: PageReadingPosition) {
+        val jsonString = json.encodeToString(position)
+        settings.putString(KEY_PAGE_READING_POSITION, jsonString)
+    }
+
+    fun getLastPageReadingPosition(): PageReadingPosition? {
+        val jsonString = settings.getString(KEY_PAGE_READING_POSITION, "")
+        return if (jsonString.isNotEmpty()) {
+            try {
+                json.decodeFromString<PageReadingPosition>(jsonString)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    fun clearPageReadingPosition() {
+        settings.remove(KEY_PAGE_READING_POSITION)
     }
 }

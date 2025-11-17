@@ -38,3 +38,19 @@ data class ReadingPosition(
     val ayahIndex: Int,
     val timestamp: Long
 )
+
+@Serializable
+data class PageReadingPosition(
+    val pageNumber: Int,
+    val timestamp: Long
+)
+
+data class PageContent(
+    val pageNumber: Int,
+    val ayahs: List<AyahWithSurah>
+)
+
+data class AyahWithSurah(
+    val ayah: Ayah,
+    val surah: Surah
+)

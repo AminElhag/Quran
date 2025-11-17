@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.quran.app.data.QuranRepository
 import com.quran.app.data.ReadingPositionManager
 import com.quran.app.data.Settings
+import com.quran.app.ui.screens.PageReadingScreen
 import com.quran.app.ui.screens.SearchScreen
 import com.quran.app.ui.screens.SurahListScreen
 import com.quran.app.ui.screens.SurahReadingScreen
@@ -18,6 +19,9 @@ sealed class Screen(val route: String) {
     data object SurahList : Screen("surah_list")
     data object SurahReading : Screen("surah_reading/{surahNumber}") {
         fun createRoute(surahNumber: Int) = "surah_reading/$surahNumber"
+    }
+    data object PageReading : Screen("page_reading/{pageNumber}") {
+        fun createRoute(pageNumber: Int = 1) = "page_reading/$pageNumber"
     }
     data object Search : Screen("search")
 }
@@ -42,6 +46,9 @@ fun QuranNavGraph(
                 },
                 onSearchClick = {
                     navController.navigate(Screen.Search.route)
+                },
+                onPageReadingClick = { pageNumber ->
+                    navController.navigate(Screen.PageReading.createRoute(pageNumber))
                 }
             )
         }
@@ -70,6 +77,29 @@ fun QuranNavGraph(
                 onSurahClick = { surahNumber ->
                     navController.navigate(Screen.SurahReading.createRoute(surahNumber)) {
                         popUpTo(Screen.SurahList.route)
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = Screen.PageReading.route,
+            arguments = listOf(
+                navArgument("pageNumber") {
+                    type = NavType.IntType
+                    defaultValue = 1
+                }
+            )
+        ) { backStackEntry ->
+            val pageNumber = backStackEntry.arguments?.getInt("pageNumber") ?: 1
+            PageReadingScreen(
+                initialPage = pageNumber,
+                repository = repository,
+                readingPositionManager = readingPositionManager,
+                onBackClick = { navController.popBackStack() },
+                onSurahListClick = {
+                    navController.navigate(Screen.SurahList.route) {
+                        popUpTo(Screen.SurahList.route) { inclusive = true }
                     }
                 }
             )

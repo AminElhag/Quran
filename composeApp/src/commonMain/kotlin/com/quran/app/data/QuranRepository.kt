@@ -48,4 +48,52 @@ class QuranRepository {
         }
         emit(results)
     }
+
+    fun getPageContent(pageNumber: Int): Flow<PageContent> = flow {
+        val data = loadQuranData()
+        val ayahsWithSurah = mutableListOf<AyahWithSurah>()
+
+        data.surahs.forEach { surah ->
+            surah.ayahs.forEach { ayah ->
+                if (ayah.page == pageNumber) {
+                    ayahsWithSurah.add(AyahWithSurah(ayah, surah))
+                }
+            }
+        }
+
+        emit(PageContent(pageNumber, ayahsWithSurah))
+    }
+
+    fun getAllPages(): Flow<Map<Int, PageContent>> = flow {
+        val data = loadQuranData()
+        val pagesMap = mutableMapOf<Int, MutableList<AyahWithSurah>>()
+
+        data.surahs.forEach { surah ->
+            surah.ayahs.forEach { ayah ->
+                if (!pagesMap.containsKey(ayah.page)) {
+                    pagesMap[ayah.page] = mutableListOf()
+                }
+                pagesMap[ayah.page]!!.add(AyahWithSurah(ayah, surah))
+            }
+        }
+
+        val result = pagesMap.mapValues { (pageNumber, ayahs) ->
+            PageContent(pageNumber, ayahs)
+        }
+
+        emit(result)
+    }
+
+    fun getTotalPages(): Flow<Int> = flow {
+        val data = loadQuranData()
+        val maxPage = data.surahs.flatMap { it.ayahs }.maxOfOrNull { it.page } ?: 604
+        emit(maxPage)
+    }
+
+    fun getPageForSurah(surahNumber: Int): Flow<Int> = flow {
+        val data = loadQuranData()
+        val surah = data.surahs.find { it.number == surahNumber }
+        val firstPage = surah?.ayahs?.firstOrNull()?.page ?: 1
+        emit(firstPage)
+    }
 }
