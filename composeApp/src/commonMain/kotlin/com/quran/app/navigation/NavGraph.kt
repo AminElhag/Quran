@@ -2,6 +2,7 @@ package com.quran.app.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -14,6 +15,8 @@ import com.quran.app.ui.screens.PageReadingScreen
 import com.quran.app.ui.screens.SearchScreen
 import com.quran.app.ui.screens.SurahListScreen
 import com.quran.app.ui.screens.SurahReadingScreen
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
     data object SurahList : Screen("surah_list")
@@ -32,6 +35,7 @@ fun QuranNavGraph(
 ) {
     val repository = remember { QuranRepository() }
     val readingPositionManager = remember { ReadingPositionManager(Settings()) }
+    val scope = rememberCoroutineScope()
 
     NavHost(
         navController = navController,
@@ -42,7 +46,11 @@ fun QuranNavGraph(
                 repository = repository,
                 readingPositionManager = readingPositionManager,
                 onSurahClick = { surahNumber ->
-                    navController.navigate(Screen.SurahReading.createRoute(surahNumber))
+                    // Navigate to book/page reading style by default
+                    scope.launch {
+                        val pageNumber = repository.getPageForSurah(surahNumber).first()
+                        navController.navigate(Screen.PageReading.createRoute(pageNumber))
+                    }
                 },
                 onSearchClick = {
                     navController.navigate(Screen.Search.route)
@@ -75,8 +83,12 @@ fun QuranNavGraph(
                 repository = repository,
                 onBackClick = { navController.popBackStack() },
                 onSurahClick = { surahNumber ->
-                    navController.navigate(Screen.SurahReading.createRoute(surahNumber)) {
-                        popUpTo(Screen.SurahList.route)
+                    // Navigate to book/page reading style by default
+                    scope.launch {
+                        val pageNumber = repository.getPageForSurah(surahNumber).first()
+                        navController.navigate(Screen.PageReading.createRoute(pageNumber)) {
+                            popUpTo(Screen.SurahList.route)
+                        }
                     }
                 }
             )
