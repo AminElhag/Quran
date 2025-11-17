@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.quran.app.data.QuranRepository
 import com.quran.app.data.ReadingPositionManager
 import com.quran.app.data.Settings
+import com.quran.app.data.TextSizeManager
 import com.quran.app.ui.screens.PageReadingScreen
 import com.quran.app.ui.screens.SearchScreen
 import com.quran.app.ui.screens.SurahListScreen
@@ -34,7 +35,9 @@ fun QuranNavGraph(
     navController: NavHostController
 ) {
     val repository = remember { QuranRepository() }
-    val readingPositionManager = remember { ReadingPositionManager(Settings()) }
+    val settings = remember { Settings() }
+    val readingPositionManager = remember { ReadingPositionManager(settings) }
+    val textSizeManager = remember { TextSizeManager(settings) }
     val scope = rememberCoroutineScope()
 
     NavHost(
@@ -108,6 +111,7 @@ fun QuranNavGraph(
                 initialPage = pageNumber,
                 repository = repository,
                 readingPositionManager = readingPositionManager,
+                textSizeManager = textSizeManager,
                 onBackClick = { navController.popBackStack() },
                 onSurahListClick = {
                     navController.navigate(Screen.SurahList.route) {
