@@ -1,13 +1,14 @@
 package com.quran.app.ui.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -17,10 +18,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.quran.app.data.*
-import com.quran.app.ui.components.Bismillah
 import com.quran.app.ui.theme.QuranTextStyles
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -39,18 +50,15 @@ fun PageReadingScreen(
     var totalPages by remember { mutableStateOf(604) }
     val scope = rememberCoroutineScope()
 
-    // Determine starting page (from saved position or parameter)
     var startPage by remember { mutableStateOf(initialPage) }
 
     LaunchedEffect(Unit) {
-        // Check for saved page reading position
         val savedPosition = readingPositionManager.getLastPageReadingPosition()
         if (savedPosition != null && initialPage == 1) {
             startPage = savedPosition.pageNumber
         }
     }
 
-    // Load all pages data
     LaunchedEffect(Unit) {
         repository.getAllPages().collectLatest { pages ->
             pagesMap = pages
@@ -60,11 +68,10 @@ fun PageReadingScreen(
     }
 
     val pagerState = rememberPagerState(
-        initialPage = startPage - 1, // 0-indexed
+        initialPage = startPage - 1,
         pageCount = { totalPages }
     )
 
-    // Save reading position when page changes
     LaunchedEffect(pagerState.currentPage) {
         if (!isLoading) {
             val currentPageNumber = pagerState.currentPage + 1
@@ -159,14 +166,14 @@ fun PageReadingScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
-                reverseLayout = true, // RTL - swipe left to go forward
+                reverseLayout = true,
                 key = { it }
             ) { pageIndex ->
                 val pageNumber = pageIndex + 1
                 val pageContent = pagesMap[pageNumber]
 
                 if (pageContent != null) {
-                    QuranPage(
+                    TraditionalQuranPage(
                         pageContent = pageContent,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -187,115 +194,338 @@ fun PageReadingScreen(
 }
 
 @Composable
-private fun QuranPage(
+private fun TraditionalQuranPage(
     pageContent: PageContent,
     modifier: Modifier = Modifier
 ) {
-    var currentSurahNumber by remember { mutableStateOf(-1) }
+    val frameColor = Color(0xFF8B7355)
+    val innerFrameColor = Color(0xFFB8A082)
+    val pageBackgroundColor = Color(0xFFFFF8E7)
 
-    LazyColumn(
+    Box(
         modifier = modifier
-            .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surface),
-        contentPadding = PaddingValues(vertical = 16.dp)
+            .padding(12.dp)
+            .background(pageBackgroundColor, RoundedCornerShape(4.dp))
+            .border(3.dp, frameColor, RoundedCornerShape(4.dp))
     ) {
-        items(pageContent.ayahs) { ayahWithSurah ->
-            val showSurahHeader = ayahWithSurah.ayah.numberInSurah == 1 &&
-                                   ayahWithSurah.surah.number != currentSurahNumber
+        // Inner decorative border
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp)
+                .border(1.dp, innerFrameColor, RoundedCornerShape(2.dp))
+        ) {
+            // Corner decorations
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        val cornerSize = 20.dp.toPx()
+                        val strokeWidth = 2.dp.toPx()
 
-            if (showSurahHeader) {
-                currentSurahNumber = ayahWithSurah.surah.number
+                        // Top-left corner decoration
+                        drawLine(
+                            color = frameColor,
+                            start = Offset(0f, cornerSize),
+                            end = Offset(0f, 0f),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = frameColor,
+                            start = Offset(0f, 0f),
+                            end = Offset(cornerSize, 0f),
+                            strokeWidth = strokeWidth
+                        )
 
-                // Surah header
-                SurahHeaderInPage(surah = ayahWithSurah.surah)
+                        // Top-right corner decoration
+                        drawLine(
+                            color = frameColor,
+                            start = Offset(size.width - cornerSize, 0f),
+                            end = Offset(size.width, 0f),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = frameColor,
+                            start = Offset(size.width, 0f),
+                            end = Offset(size.width, cornerSize),
+                            strokeWidth = strokeWidth
+                        )
 
-                // Bismillah (except for At-Tawbah and if not first ayah of Al-Fatiha which includes it)
-                if (ayahWithSurah.surah.number != 9 && ayahWithSurah.surah.number != 1) {
-                    Bismillah()
+                        // Bottom-left corner decoration
+                        drawLine(
+                            color = frameColor,
+                            start = Offset(0f, size.height - cornerSize),
+                            end = Offset(0f, size.height),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = frameColor,
+                            start = Offset(0f, size.height),
+                            end = Offset(cornerSize, size.height),
+                            strokeWidth = strokeWidth
+                        )
+
+                        // Bottom-right corner decoration
+                        drawLine(
+                            color = frameColor,
+                            start = Offset(size.width - cornerSize, size.height),
+                            end = Offset(size.width, size.height),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = frameColor,
+                            start = Offset(size.width, size.height - cornerSize),
+                            end = Offset(size.width, size.height),
+                            strokeWidth = strokeWidth
+                        )
+                    }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Build page content with traditional styling
+                    var lastSurahNumber = -1
+
+                    pageContent.ayahs.forEach { ayahWithSurah ->
+                        val isNewSurah = ayahWithSurah.ayah.numberInSurah == 1 &&
+                                         ayahWithSurah.surah.number != lastSurahNumber
+
+                        if (isNewSurah) {
+                            lastSurahNumber = ayahWithSurah.surah.number
+
+                            // Surah header with traditional styling
+                            OrnamentedSurahHeader(surah = ayahWithSurah.surah)
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Bismillah (except for At-Tawbah and Al-Fatiha)
+                            if (ayahWithSurah.surah.number != 9 && ayahWithSurah.surah.number != 1) {
+                                TraditionalBismillah()
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+                    }
+
+                    // Flowing Quranic text
+                    FlowingQuranText(
+                        ayahs = pageContent.ayahs,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Page number at bottom
+                    PageNumberDecoration(pageNumber = pageContent.pageNumber)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrnamentedSurahHeader(surah: Surah) {
+    val frameColor = Color(0xFF8B7355)
+    val goldColor = Color(0xFFD4AF37)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+    ) {
+        // Outer decorative frame
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = Color(0xFFF5E6D3),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .border(2.dp, frameColor, RoundedCornerShape(16.dp))
+                .drawBehind {
+                    // Left ornament
+                    drawCircle(
+                        color = goldColor,
+                        radius = 8.dp.toPx(),
+                        center = Offset(16.dp.toPx(), size.height / 2)
+                    )
+                    drawCircle(
+                        color = frameColor,
+                        radius = 8.dp.toPx(),
+                        center = Offset(16.dp.toPx(), size.height / 2),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+
+                    // Right ornament
+                    drawCircle(
+                        color = goldColor,
+                        radius = 8.dp.toPx(),
+                        center = Offset(size.width - 16.dp.toPx(), size.height / 2)
+                    )
+                    drawCircle(
+                        color = frameColor,
+                        radius = 8.dp.toPx(),
+                        center = Offset(size.width - 16.dp.toPx(), size.height / 2),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
+                .padding(vertical = 12.dp, horizontal = 32.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Surah name
+                Text(
+                    text = "سُورَةُ ${surah.name}",
+                    style = QuranTextStyles.surahHeaderText.copy(
+                        fontSize = 22.sp,
+                        color = Color(0xFF2D1810)
+                    ),
+                    textAlign = TextAlign.Center
+                )
+
+                // Revelation type and verse count
+                Text(
+                    text = "${if (surah.revelationType == "Meccan") "مَكِّيَّة" else "مَدَنِيَّة"} - ${surah.numberOfAyahs} آية",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color(0xFF5D4E37),
+                        fontSize = 12.sp
+                    ),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TraditionalBismillah() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+            style = QuranTextStyles.mushafText.copy(
+                fontSize = 26.sp,
+                color = Color(0xFF2D1810),
+                fontWeight = FontWeight.Normal
+            ),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun FlowingQuranText(
+    ayahs: List<AyahWithSurah>,
+    modifier: Modifier = Modifier
+) {
+    val verseMarkerColor = Color(0xFF8B7355)
+
+    // Build flowing text with all ayahs concatenated
+    val annotatedText = buildAnnotatedString {
+        var lastSurahNumber = -1
+        var skipFirstAyahOfNewSurah = false
+
+        ayahs.forEachIndexed { index, ayahWithSurah ->
+            val isNewSurah = ayahWithSurah.ayah.numberInSurah == 1 &&
+                             ayahWithSurah.surah.number != lastSurahNumber
+
+            if (isNewSurah) {
+                lastSurahNumber = ayahWithSurah.surah.number
+                skipFirstAyahOfNewSurah = false
+
+                // Don't add separator if this is the first ayah on the page
+                if (index > 0) {
+                    append("\n\n")
                 }
             }
 
-            // Display ayah with inline number
-            PageAyahItem(
-                ayah = ayahWithSurah.ayah,
-                surahName = ayahWithSurah.surah.name
-            )
-        }
+            // Add ayah text
+            withStyle(
+                style = SpanStyle(
+                    color = Color(0xFF2D1810),
+                    fontSize = 24.sp
+                )
+            ) {
+                append(ayahWithSurah.ayah.text)
+            }
 
-        // Page footer
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "صفحة ${pageContent.pageNumber}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-@Composable
-private fun SurahHeaderInPage(surah: Surah) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "سورة ${surah.name}",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "${surah.englishName} - ${surah.numberOfAyahs} آيات",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
+            // Add verse number marker
+            withStyle(
+                style = SpanStyle(
+                    color = verseMarkerColor,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            ) {
+                append(" ﴿${convertToArabicNumerals(ayahWithSurah.ayah.numberInSurah)}﴾ ")
+            }
         }
     }
-}
 
-@Composable
-private fun PageAyahItem(
-    ayah: Ayah,
-    surahName: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
+    Text(
+        text = annotatedText,
+        style = QuranTextStyles.mushafText,
+        textAlign = TextAlign.Justify,
         modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.Top
+    )
+}
+
+@Composable
+private fun PageNumberDecoration(pageNumber: Int) {
+    val frameColor = Color(0xFF8B7355)
+
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
     ) {
-        // Ayah text with number marker
-        Text(
-            text = buildString {
-                append(ayah.text)
-                append(" ")
-                append("﴿${ayah.numberInSurah}﴾")
-            },
-            style = QuranTextStyles.ayahText,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            // Left decorative line
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(frameColor.copy(alpha = 0.5f))
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Page number
+            Text(
+                text = convertToArabicNumerals(pageNumber),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = frameColor,
+                    fontSize = 14.sp
+                ),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Right decorative line
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(frameColor.copy(alpha = 0.5f))
+            )
+        }
     }
+}
+
+private fun convertToArabicNumerals(number: Int): String {
+    val arabicNumerals = arrayOf('٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩')
+    return number.toString().map { arabicNumerals[it - '0'] }.joinToString("")
 }
 
 @Composable
@@ -321,7 +551,6 @@ private fun PageNavigationBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Next page (RTL - right side is next)
             IconButton(
                 onClick = onNextPage,
                 enabled = currentPage < totalPages
@@ -332,7 +561,6 @@ private fun PageNavigationBar(
                 )
             }
 
-            // Page indicator - clickable to jump to page
             TextButton(
                 onClick = {
                     pageInputText = currentPage.toString()
@@ -340,13 +568,12 @@ private fun PageNavigationBar(
                 }
             ) {
                 Text(
-                    text = "$currentPage / $totalPages",
+                    text = "${convertToArabicNumerals(currentPage)} / ${convertToArabicNumerals(totalPages)}",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
 
-            // Previous page (RTL - left side is previous)
             IconButton(
                 onClick = onPreviousPage,
                 enabled = currentPage > 1
@@ -359,7 +586,6 @@ private fun PageNavigationBar(
         }
     }
 
-    // Page picker dialog
     if (showPagePicker) {
         AlertDialog(
             onDismissRequest = { showPagePicker = false },

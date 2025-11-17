@@ -143,4 +143,23 @@ object QuranTextStyles {
         letterSpacing = 0.sp,
         textDirection = TextDirection.Rtl
     )
+
+    // Traditional Mushaf style - flowing text
+    val mushafText = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 24.sp,
+        lineHeight = 52.sp,
+        letterSpacing = 0.sp,
+        textDirection = TextDirection.Rtl
+    )
+
+    val surahHeaderText = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontSize = 20.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.sp,
+        textDirection = TextDirection.Rtl
+    )
 }
