@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -67,7 +67,7 @@ fun SurahListScreen(
                 actions = {
                     IconButton(onClick = { onPageReadingClick(lastPageReadingPosition?.pageNumber ?: 1) }) {
                         Icon(
-                            imageVector = Icons.Default.Book,
+                            imageVector = Icons.Default.Build,
                             contentDescription = "قراءة بالصفحات"
                         )
                     }
@@ -170,7 +170,7 @@ fun SurahListScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Book,
+                                imageVector = Icons.Default.Build,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(32.dp)
