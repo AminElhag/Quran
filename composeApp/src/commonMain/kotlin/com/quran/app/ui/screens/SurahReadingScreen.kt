@@ -3,6 +3,7 @@ package com.quran.app.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -12,25 +13,69 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.quran.app.data.QuranRepository
+import com.quran.app.data.ReadingPosition
+import com.quran.app.data.ReadingPositionManager
 import com.quran.app.data.Surah
+import com.quran.app.data.currentTimeMillis
 import com.quran.app.ui.components.AyahItem
 import com.quran.app.ui.components.Bismillah
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SurahReadingScreen(
     surahNumber: Int,
     repository: QuranRepository,
+    readingPositionManager: ReadingPositionManager,
     onBackClick: () -> Unit
 ) {
     var surah by remember { mutableStateOf<Surah?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    val listState = rememberLazyListState()
+    var hasRestoredPosition by remember { mutableStateOf(false) }
 
     LaunchedEffect(surahNumber) {
         repository.getSurah(surahNumber).collectLatest { s ->
             surah = s
             isLoading = false
+        }
+    }
+
+    // Restore scroll position if returning to the same surah
+    LaunchedEffect(surah, hasRestoredPosition) {
+        if (surah != null && !hasRestoredPosition) {
+            val lastPosition = readingPositionManager.getLastReadingPosition()
+            if (lastPosition != null && lastPosition.surahNumber == surahNumber) {
+                // Calculate the actual index considering header and bismillah
+                val headerOffset = if (surahNumber != 9 && surahNumber != 1) 2 else 1
+                val targetIndex = lastPosition.ayahIndex + headerOffset
+                if (targetIndex > 0 && targetIndex < surah!!.ayahs.size + headerOffset + 1) {
+                    listState.scrollToItem(targetIndex)
+                }
+            }
+            hasRestoredPosition = true
+        }
+    }
+
+    // Save reading position when scrolling
+    LaunchedEffect(listState.firstVisibleItemIndex) {
+        if (surah != null && hasRestoredPosition) {
+            // Debounce saving to avoid too frequent saves
+            delay(500)
+
+            // Calculate the ayah index from the list position
+            val headerOffset = if (surahNumber != 9 && surahNumber != 1) 2 else 1
+            val ayahIndex = (listState.firstVisibleItemIndex - headerOffset).coerceAtLeast(0)
+
+            if (ayahIndex < surah!!.ayahs.size) {
+                val position = ReadingPosition(
+                    surahNumber = surahNumber,
+                    ayahIndex = ayahIndex,
+                    timestamp = currentTimeMillis()
+                )
+                readingPositionManager.saveReadingPosition(position)
+            }
         }
     }
 
@@ -83,6 +128,7 @@ fun SurahReadingScreen(
             }
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)

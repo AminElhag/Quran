@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.quran.app.data.QuranRepository
+import com.quran.app.data.ReadingPosition
+import com.quran.app.data.ReadingPositionManager
 import com.quran.app.data.Surah
 import com.quran.app.ui.components.SurahListItem
 import kotlinx.coroutines.flow.collectLatest
@@ -20,16 +23,26 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun SurahListScreen(
     repository: QuranRepository,
+    readingPositionManager: ReadingPositionManager,
     onSurahClick: (Int) -> Unit,
     onSearchClick: () -> Unit
 ) {
     var surahs by remember { mutableStateOf<List<Surah>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var lastReadingPosition by remember { mutableStateOf<ReadingPosition?>(null) }
+    var lastReadSurah by remember { mutableStateOf<Surah?>(null) }
 
     LaunchedEffect(Unit) {
         repository.getAllSurahs().collectLatest { surahList ->
             surahs = surahList
             isLoading = false
+
+            // Get last reading position after loading surahs
+            val position = readingPositionManager.getLastReadingPosition()
+            lastReadingPosition = position
+            if (position != null) {
+                lastReadSurah = surahList.find { it.number == position.surahNumber }
+            }
         }
     }
 
@@ -57,6 +70,24 @@ fun SurahListScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
+        },
+        floatingActionButton = {
+            if (lastReadingPosition != null && lastReadSurah != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { onSurahClick(lastReadingPosition!!.surahNumber) },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null
+                        )
+                    },
+                    text = {
+                        Text("متابعة القراءة")
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            }
         }
     ) { paddingValues ->
         if (isLoading) {
@@ -104,6 +135,50 @@ fun SurahListScreen(
                                 color = MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center
                             )
+                        }
+                    }
+                }
+
+                // Resume Reading Card
+                if (lastReadingPosition != null && lastReadSurah != null) {
+                    item {
+                        Card(
+                            onClick = { onSurahClick(lastReadingPosition!!.surahNumber) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        text = "متابعة القراءة",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                    Text(
+                                        text = "سورة ${lastReadSurah!!.name} - الآية ${lastReadingPosition!!.ayahIndex + 1}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

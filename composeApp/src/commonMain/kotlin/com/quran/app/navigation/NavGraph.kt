@@ -8,6 +8,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.quran.app.data.QuranRepository
+import com.quran.app.data.ReadingPositionManager
+import com.quran.app.data.Settings
 import com.quran.app.ui.screens.SearchScreen
 import com.quran.app.ui.screens.SurahListScreen
 import com.quran.app.ui.screens.SurahReadingScreen
@@ -25,6 +27,7 @@ fun QuranNavGraph(
     navController: NavHostController
 ) {
     val repository = remember { QuranRepository() }
+    val readingPositionManager = remember { ReadingPositionManager(Settings()) }
 
     NavHost(
         navController = navController,
@@ -33,6 +36,7 @@ fun QuranNavGraph(
         composable(Screen.SurahList.route) {
             SurahListScreen(
                 repository = repository,
+                readingPositionManager = readingPositionManager,
                 onSurahClick = { surahNumber ->
                     navController.navigate(Screen.SurahReading.createRoute(surahNumber))
                 },
@@ -54,6 +58,7 @@ fun QuranNavGraph(
             SurahReadingScreen(
                 surahNumber = surahNumber,
                 repository = repository,
+                readingPositionManager = readingPositionManager,
                 onBackClick = { navController.popBackStack() }
             )
         }
