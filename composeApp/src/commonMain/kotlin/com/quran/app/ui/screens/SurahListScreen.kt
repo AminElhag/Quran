@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -13,7 +12,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.quran.app.data.PageReadingPosition
 import com.quran.app.data.QuranRepository
 import com.quran.app.data.ReadingPosition
 import com.quran.app.data.ReadingPositionManager
@@ -34,7 +32,6 @@ fun SurahListScreen(
     var isLoading by remember { mutableStateOf(true) }
     var lastReadingPosition by remember { mutableStateOf<ReadingPosition?>(null) }
     var lastReadSurah by remember { mutableStateOf<Surah?>(null) }
-    var lastPageReadingPosition by remember { mutableStateOf<PageReadingPosition?>(null) }
 
     LaunchedEffect(Unit) {
         repository.getAllSurahs().collectLatest { surahList ->
@@ -47,9 +44,6 @@ fun SurahListScreen(
             if (position != null) {
                 lastReadSurah = surahList.find { it.number == position.surahNumber }
             }
-
-            // Get last page reading position
-            lastPageReadingPosition = readingPositionManager.getLastPageReadingPosition()
         }
     }
 
@@ -65,12 +59,6 @@ fun SurahListScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = { onPageReadingClick(lastPageReadingPosition?.pageNumber ?: 1) }) {
-                        Icon(
-                            imageVector = Icons.Default.Build,
-                            contentDescription = "قراءة بالصفحات"
-                        )
-                    }
                     IconButton(onClick = onSearchClick) {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -148,52 +136,6 @@ fun SurahListScreen(
                                 color = MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center
                             )
-                        }
-                    }
-                }
-
-                // Page Reading Card
-                item {
-                    Card(
-                        onClick = { onPageReadingClick(lastPageReadingPosition?.pageNumber ?: 1) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Build,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(
-                                    text = "القراءة بالصفحات",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                                Text(
-                                    text = if (lastPageReadingPosition != null) {
-                                        "متابعة من صفحة ${lastPageReadingPosition!!.pageNumber}"
-                                    } else {
-                                        "اقرأ القرآن كما في المصحف"
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
                         }
                     }
                 }
