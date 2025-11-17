@@ -19,12 +19,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.TextDecrease
-import androidx.compose.material.icons.filled.TextIncrease
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -142,7 +141,7 @@ fun PageReadingScreen(
                                 enabled = textSizeLevel > TextSizeManager.MIN_SIZE_LEVEL
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.TextDecrease,
+                                    imageVector = Icons.Default.Create,
                                     contentDescription = "تصغير الخط"
                                 )
                             }
@@ -158,7 +157,7 @@ fun PageReadingScreen(
                                 enabled = textSizeLevel < TextSizeManager.MAX_SIZE_LEVEL
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.TextIncrease,
+                                    imageVector = Icons.Default.Call,
                                     contentDescription = "تكبير الخط"
                                 )
                             }
@@ -174,7 +173,7 @@ fun PageReadingScreen(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = if (isFullPageMode) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                    imageVector = if (isFullPageMode) Icons.Default.ShoppingCart else Icons.Default.Call,
                                     contentDescription = if (isFullPageMode) "إنهاء وضع الشاشة الكاملة" else "وضع الشاشة الكاملة"
                                 )
                             }
