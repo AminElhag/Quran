@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,19 +21,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -42,9 +37,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.quran.app.data.*
-import com.quran.app.tajweed.TajweedColors
-import com.quran.app.tajweed.TajweedParser
-import com.quran.app.ui.components.TajweedLegend
 import com.quran.app.ui.theme.QuranTextStyles
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -56,7 +48,6 @@ fun PageReadingScreen(
     repository: QuranRepository,
     readingPositionManager: ReadingPositionManager,
     textSizeManager: TextSizeManager,
-    tajweedSettingsManager: TajweedSettingsManager,
     onBackClick: () -> Unit,
     onSurahListClick: () -> Unit
 ) {
@@ -72,10 +63,6 @@ fun PageReadingScreen(
     var isFullPageMode by remember { mutableStateOf(textSizeManager.isFullPageModeEnabled()) }
     var showControls by remember { mutableStateOf(!isFullPageMode) }
     var showSettingsMenu by remember { mutableStateOf(false) }
-
-    // Tajweed settings state
-    var isTajweedEnabled by remember { mutableStateOf(tajweedSettingsManager.isTajweedEnabled()) }
-    var showTajweedLegend by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val savedPosition = readingPositionManager.getLastPageReadingPosition()
@@ -137,34 +124,6 @@ fun PageReadingScreen(
                             }
                         },
                         actions = {
-                            // Tajweed toggle button
-                            IconButton(
-                                onClick = {
-                                    isTajweedEnabled = !isTajweedEnabled
-                                    tajweedSettingsManager.saveTajweedEnabled(isTajweedEnabled)
-                                }
-                            ) {
-                                Text(
-                                    text = "ت",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = if (isTajweedEnabled) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
-                                )
-                            }
-
-                            // Tajweed legend button
-                            IconButton(
-                                onClick = { showTajweedLegend = true }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = "دليل التجويد"
-                                )
-                            }
-
                             // Text size decrease button
                             IconButton(
                                 onClick = {
@@ -303,7 +262,6 @@ fun PageReadingScreen(
                         TraditionalQuranPage(
                             pageContent = pageContent,
                             textSizeMultiplier = textSizeMultiplier,
-                            isTajweedEnabled = isTajweedEnabled,
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
@@ -344,18 +302,6 @@ fun PageReadingScreen(
             }
         }
 
-        // Tajweed legend dialog
-        if (showTajweedLegend) {
-            AlertDialog(
-                onDismissRequest = { showTajweedLegend = false },
-                confirmButton = {},
-                text = {
-                    TajweedLegend(
-                        onDismiss = { showTajweedLegend = false }
-                    )
-                }
-            )
-        }
     }
 }
 
@@ -363,7 +309,6 @@ fun PageReadingScreen(
 private fun TraditionalQuranPage(
     pageContent: PageContent,
     textSizeMultiplier: Float = 1.0f,
-    isTajweedEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val frameColor = Color(0xFF8B7355)
@@ -484,7 +429,6 @@ private fun TraditionalQuranPage(
                     FlowingQuranText(
                         ayahs = pageContent.ayahs,
                         textSizeMultiplier = textSizeMultiplier,
-                        isTajweedEnabled = isTajweedEnabled,
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -601,7 +545,6 @@ private fun TraditionalBismillah(textSizeMultiplier: Float = 1.0f) {
 private fun FlowingQuranText(
     ayahs: List<AyahWithSurah>,
     textSizeMultiplier: Float = 1.0f,
-    isTajweedEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val verseMarkerColor = Color(0xFF8B7355)
@@ -610,7 +553,7 @@ private fun FlowingQuranText(
     val defaultTextColor = Color(0xFF2D1810)
 
     // Build flowing text with all ayahs concatenated
-    // Use addStyle with ranges to preserve Arabic character joining
+    // Use addStyle with ranges to preserve Arabic character joining (Ottoman script)
     val annotatedText = buildAnnotatedString {
         // First pass: build the complete text and collect style information
         val styleRanges = mutableListOf<Triple<Int, Int, SpanStyle>>()
@@ -630,32 +573,13 @@ private fun FlowingQuranText(
                 }
             }
 
-            // Add ayah text with Tajweed styling if enabled
-            if (isTajweedEnabled) {
-                // Parse and apply Tajweed colors
-                val tajweedSegments = TajweedParser.autoDetectTajweed(ayahWithSurah.ayah.text)
-                for (segment in tajweedSegments) {
-                    val color = if (segment.rule == com.quran.app.tajweed.TajweedRule.DEFAULT) {
-                        defaultTextColor
-                    } else {
-                        com.quran.app.tajweed.getTajweedColor(segment.rule)
-                    }
-                    val startPos = textBuilder.length
-                    textBuilder.append(segment.text)
-                    styleRanges.add(Triple(startPos, textBuilder.length, SpanStyle(
-                        color = color,
-                        fontSize = baseFontSize.sp
-                    )))
-                }
-            } else {
-                // Plain text without Tajweed styling
-                val startPos = textBuilder.length
-                textBuilder.append(ayahWithSurah.ayah.text)
-                styleRanges.add(Triple(startPos, textBuilder.length, SpanStyle(
-                    color = defaultTextColor,
-                    fontSize = baseFontSize.sp
-                )))
-            }
+            // Add ayah text - plain text without Tajweed styling, preserving Ottoman script
+            val startPos = textBuilder.length
+            textBuilder.append(ayahWithSurah.ayah.text)
+            styleRanges.add(Triple(startPos, textBuilder.length, SpanStyle(
+                color = defaultTextColor,
+                fontSize = baseFontSize.sp
+            )))
 
             // Add verse number marker
             val markerStartPos = textBuilder.length
@@ -668,7 +592,7 @@ private fun FlowingQuranText(
             )))
         }
 
-        // Append the complete text first to preserve Arabic shaping
+        // Append the complete text first to preserve Arabic shaping (Ottoman script)
         append(textBuilder.toString())
 
         // Apply all styles using ranges

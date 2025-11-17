@@ -10,13 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.quran.app.data.Ayah
-import com.quran.app.tajweed.TajweedParser
 import com.quran.app.ui.theme.QuranTextStyles
 
 @Composable
 fun AyahItem(
     ayah: Ayah,
-    isTajweedEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -24,27 +22,14 @@ fun AyahItem(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // Ayah text with optional Tajweed styling
-        if (isTajweedEnabled) {
-            Text(
-                text = TajweedParser.parseAndBuildAnnotatedString(
-                    text = ayah.text,
-                    fontSize = QuranTextStyles.ayahText.fontSize,
-                    defaultColor = MaterialTheme.colorScheme.onBackground
-                ),
-                style = QuranTextStyles.ayahText,
-                textAlign = TextAlign.End,
-                modifier = Modifier.fillMaxWidth()
-            )
-        } else {
-            Text(
-                text = ayah.text,
-                style = QuranTextStyles.ayahText,
-                color = MaterialTheme.colorScheme.onBackground,
-                textAlign = TextAlign.End,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+        // Ayah text - Ottoman script preserved
+        Text(
+            text = ayah.text,
+            style = QuranTextStyles.ayahText,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.End,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 
