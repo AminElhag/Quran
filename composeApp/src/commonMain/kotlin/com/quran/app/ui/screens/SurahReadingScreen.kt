@@ -16,9 +16,11 @@ import com.quran.app.data.QuranRepository
 import com.quran.app.data.ReadingPosition
 import com.quran.app.data.ReadingPositionManager
 import com.quran.app.data.Surah
+import com.quran.app.data.TajweedSettingsManager
 import com.quran.app.data.currentTimeMillis
 import com.quran.app.ui.components.AyahItem
 import com.quran.app.ui.components.Bismillah
+import com.quran.app.ui.components.TajweedLegend
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 
@@ -28,12 +30,17 @@ fun SurahReadingScreen(
     surahNumber: Int,
     repository: QuranRepository,
     readingPositionManager: ReadingPositionManager,
+    tajweedSettingsManager: TajweedSettingsManager,
     onBackClick: () -> Unit
 ) {
     var surah by remember { mutableStateOf<Surah?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     val listState = rememberLazyListState()
     var hasRestoredPosition by remember { mutableStateOf(false) }
+
+    // Tajweed settings state
+    var isTajweedEnabled by remember { mutableStateOf(tajweedSettingsManager.isTajweedEnabled()) }
+    var showTajweedLegend by remember { mutableStateOf(false) }
 
     LaunchedEffect(surahNumber) {
         repository.getSurah(surahNumber).collectLatest { s ->
@@ -95,6 +102,36 @@ fun SurahReadingScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "رجوع"
+                        )
+                    }
+                },
+                actions = {
+                    // Tajweed toggle button
+                    IconButton(
+                        onClick = {
+                            isTajweedEnabled = !isTajweedEnabled
+                            tajweedSettingsManager.saveTajweedEnabled(isTajweedEnabled)
+                        }
+                    ) {
+                        Text(
+                            text = "ت",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (isTajweedEnabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+
+                    // Tajweed legend button
+                    IconButton(
+                        onClick = { showTajweedLegend = true }
+                    ) {
+                        Text(
+                            text = "؟",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
@@ -182,7 +219,10 @@ fun SurahReadingScreen(
 
                 // Ayahs
                 items(surah!!.ayahs) { ayah ->
-                    AyahItem(ayah = ayah)
+                    AyahItem(
+                        ayah = ayah,
+                        isTajweedEnabled = isTajweedEnabled
+                    )
                 }
 
                 // Bottom spacing
@@ -191,5 +231,18 @@ fun SurahReadingScreen(
                 }
             }
         }
+    }
+
+    // Tajweed legend dialog
+    if (showTajweedLegend) {
+        AlertDialog(
+            onDismissRequest = { showTajweedLegend = false },
+            confirmButton = {},
+            text = {
+                TajweedLegend(
+                    onDismiss = { showTajweedLegend = false }
+                )
+            }
+        )
     }
 }

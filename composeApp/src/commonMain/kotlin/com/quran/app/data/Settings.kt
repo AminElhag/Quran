@@ -105,3 +105,35 @@ class TextSizeManager(private val settings: Settings) {
         }
     }
 }
+
+class TajweedSettingsManager(private val settings: Settings) {
+    companion object {
+        private const val KEY_TAJWEED_ENABLED = "tajweed_enabled"
+        private const val KEY_AUTO_DETECT_TAJWEED = "auto_detect_tajweed"
+        private const val KEY_SHOW_TAJWEED_LEGEND = "show_tajweed_legend"
+    }
+
+    fun saveTajweedEnabled(enabled: Boolean) {
+        settings.putBoolean(KEY_TAJWEED_ENABLED, enabled)
+    }
+
+    fun isTajweedEnabled(): Boolean {
+        return settings.getBoolean(KEY_TAJWEED_ENABLED, true) // Enabled by default
+    }
+
+    fun saveAutoDetectTajweed(enabled: Boolean) {
+        settings.putBoolean(KEY_AUTO_DETECT_TAJWEED, enabled)
+    }
+
+    fun isAutoDetectTajweedEnabled(): Boolean {
+        return settings.getBoolean(KEY_AUTO_DETECT_TAJWEED, true) // Enabled by default
+    }
+
+    fun saveShowTajweedLegend(show: Boolean) {
+        settings.putBoolean(KEY_SHOW_TAJWEED_LEGEND, show)
+    }
+
+    fun shouldShowTajweedLegend(): Boolean {
+        return settings.getBoolean(KEY_SHOW_TAJWEED_LEGEND, false)
+    }
+}

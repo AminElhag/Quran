@@ -43,6 +43,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.quran.app.data.*
+import com.quran.app.tajweed.TajweedColors
+import com.quran.app.tajweed.TajweedParser
+import com.quran.app.ui.components.TajweedLegend
 import com.quran.app.ui.theme.QuranTextStyles
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -54,6 +57,7 @@ fun PageReadingScreen(
     repository: QuranRepository,
     readingPositionManager: ReadingPositionManager,
     textSizeManager: TextSizeManager,
+    tajweedSettingsManager: TajweedSettingsManager,
     onBackClick: () -> Unit,
     onSurahListClick: () -> Unit
 ) {
@@ -69,6 +73,10 @@ fun PageReadingScreen(
     var isFullPageMode by remember { mutableStateOf(textSizeManager.isFullPageModeEnabled()) }
     var showControls by remember { mutableStateOf(!isFullPageMode) }
     var showSettingsMenu by remember { mutableStateOf(false) }
+
+    // Tajweed settings state
+    var isTajweedEnabled by remember { mutableStateOf(tajweedSettingsManager.isTajweedEnabled()) }
+    var showTajweedLegend by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val savedPosition = readingPositionManager.getLastPageReadingPosition()
@@ -130,6 +138,34 @@ fun PageReadingScreen(
                             }
                         },
                         actions = {
+                            // Tajweed toggle button
+                            IconButton(
+                                onClick = {
+                                    isTajweedEnabled = !isTajweedEnabled
+                                    tajweedSettingsManager.saveTajweedEnabled(isTajweedEnabled)
+                                }
+                            ) {
+                                Text(
+                                    text = "ت",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (isTajweedEnabled) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+
+                            // Tajweed legend button
+                            IconButton(
+                                onClick = { showTajweedLegend = true }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "دليل التجويد"
+                                )
+                            }
+
                             // Text size decrease button
                             IconButton(
                                 onClick = {
@@ -268,6 +304,7 @@ fun PageReadingScreen(
                         TraditionalQuranPage(
                             pageContent = pageContent,
                             textSizeMultiplier = textSizeMultiplier,
+                            isTajweedEnabled = isTajweedEnabled,
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
@@ -307,6 +344,19 @@ fun PageReadingScreen(
                 )
             }
         }
+
+        // Tajweed legend dialog
+        if (showTajweedLegend) {
+            AlertDialog(
+                onDismissRequest = { showTajweedLegend = false },
+                confirmButton = {},
+                text = {
+                    TajweedLegend(
+                        onDismiss = { showTajweedLegend = false }
+                    )
+                }
+            )
+        }
     }
 }
 
@@ -314,6 +364,7 @@ fun PageReadingScreen(
 private fun TraditionalQuranPage(
     pageContent: PageContent,
     textSizeMultiplier: Float = 1.0f,
+    isTajweedEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val frameColor = Color(0xFF8B7355)
@@ -434,6 +485,7 @@ private fun TraditionalQuranPage(
                     FlowingQuranText(
                         ayahs = pageContent.ayahs,
                         textSizeMultiplier = textSizeMultiplier,
+                        isTajweedEnabled = isTajweedEnabled,
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -550,11 +602,13 @@ private fun TraditionalBismillah(textSizeMultiplier: Float = 1.0f) {
 private fun FlowingQuranText(
     ayahs: List<AyahWithSurah>,
     textSizeMultiplier: Float = 1.0f,
+    isTajweedEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val verseMarkerColor = Color(0xFF8B7355)
     val baseFontSize = 24 * textSizeMultiplier
     val markerFontSize = 20 * textSizeMultiplier
+    val defaultTextColor = Color(0xFF2D1810)
 
     // Build flowing text with all ayahs concatenated
     val annotatedText = buildAnnotatedString {
@@ -575,14 +629,35 @@ private fun FlowingQuranText(
                 }
             }
 
-            // Add ayah text
-            withStyle(
-                style = SpanStyle(
-                    color = Color(0xFF2D1810),
-                    fontSize = baseFontSize.sp
-                )
-            ) {
-                append(ayahWithSurah.ayah.text)
+            // Add ayah text with Tajweed styling if enabled
+            if (isTajweedEnabled) {
+                // Parse and apply Tajweed colors
+                val tajweedSegments = TajweedParser.autoDetectTajweed(ayahWithSurah.ayah.text)
+                for (segment in tajweedSegments) {
+                    val color = if (segment.rule == com.quran.app.tajweed.TajweedRule.DEFAULT) {
+                        defaultTextColor
+                    } else {
+                        com.quran.app.tajweed.getTajweedColor(segment.rule)
+                    }
+                    withStyle(
+                        style = SpanStyle(
+                            color = color,
+                            fontSize = baseFontSize.sp
+                        )
+                    ) {
+                        append(segment.text)
+                    }
+                }
+            } else {
+                // Plain text without Tajweed styling
+                withStyle(
+                    style = SpanStyle(
+                        color = defaultTextColor,
+                        fontSize = baseFontSize.sp
+                    )
+                ) {
+                    append(ayahWithSurah.ayah.text)
+                }
             }
 
             // Add verse number marker
