@@ -30,6 +30,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +47,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun PageReadingScreen(
     initialPage: Int = 1,
+    targetSurahNumber: Int? = null,
     repository: QuranRepository,
     readingPositionManager: ReadingPositionManager,
     textSizeManager: TextSizeManager,
@@ -261,6 +264,7 @@ fun PageReadingScreen(
                     if (pageContent != null) {
                         TraditionalQuranPage(
                             pageContent = pageContent,
+                            targetSurahNumber = if (pageNumber == initialPage) targetSurahNumber else null,
                             textSizeMultiplier = textSizeMultiplier,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -308,12 +312,25 @@ fun PageReadingScreen(
 @Composable
 private fun TraditionalQuranPage(
     pageContent: PageContent,
+    targetSurahNumber: Int? = null,
     textSizeMultiplier: Float = 1.0f,
     modifier: Modifier = Modifier
 ) {
     val frameColor = Color(0xFF8B7355)
     val innerFrameColor = Color(0xFFB8A082)
     val pageBackgroundColor = Color(0xFFFFF8E7)
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+
+    // Track the Y position of the target Surah header
+    var targetSurahYPosition by remember { mutableStateOf<Float?>(null) }
+
+    // Scroll to target Surah when position is known
+    LaunchedEffect(targetSurahYPosition) {
+        targetSurahYPosition?.let { yPos ->
+            scrollState.animateScrollTo(yPos.toInt())
+        }
+    }
 
     Box(
         modifier = modifier
@@ -397,7 +414,7 @@ private fun TraditionalQuranPage(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(scrollState)
                 ) {
                     // Build page content with traditional styling
                     var lastSurahNumber = -1
@@ -410,10 +427,20 @@ private fun TraditionalQuranPage(
                             lastSurahNumber = ayahWithSurah.surah.number
 
                             // Surah header with traditional styling
-                            OrnamentedSurahHeader(
-                                surah = ayahWithSurah.surah,
-                                textSizeMultiplier = textSizeMultiplier
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .onGloballyPositioned { coordinates ->
+                                        // If this is the target Surah, capture its Y position
+                                        if (targetSurahNumber == ayahWithSurah.surah.number) {
+                                            targetSurahYPosition = coordinates.positionInParent().y
+                                        }
+                                    }
+                            ) {
+                                OrnamentedSurahHeader(
+                                    surah = ayahWithSurah.surah,
+                                    textSizeMultiplier = textSizeMultiplier
+                                )
+                            }
 
                             Spacer(modifier = Modifier.height(12.dp))
 

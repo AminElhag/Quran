@@ -24,8 +24,10 @@ sealed class Screen(val route: String) {
     data object SurahReading : Screen("surah_reading/{surahNumber}") {
         fun createRoute(surahNumber: Int) = "surah_reading/$surahNumber"
     }
-    data object PageReading : Screen("page_reading/{pageNumber}") {
-        fun createRoute(pageNumber: Int = 1) = "page_reading/$pageNumber"
+    data object PageReading : Screen("page_reading/{pageNumber}?surahNumber={surahNumber}") {
+        fun createRoute(pageNumber: Int = 1, surahNumber: Int? = null) =
+            if (surahNumber != null) "page_reading/$pageNumber?surahNumber=$surahNumber"
+            else "page_reading/$pageNumber"
     }
     data object Search : Screen("search")
 }
@@ -52,7 +54,7 @@ fun QuranNavGraph(
                     // Navigate to book/page reading style
                     scope.launch {
                         val pageNumber = repository.getPageForSurah(surahNumber).first()
-                        navController.navigate(Screen.PageReading.createRoute(pageNumber))
+                        navController.navigate(Screen.PageReading.createRoute(pageNumber, surahNumber))
                     }
                 },
                 onSearchClick = {
@@ -107,12 +109,18 @@ fun QuranNavGraph(
                 navArgument("pageNumber") {
                     type = NavType.IntType
                     defaultValue = 1
+                },
+                navArgument("surahNumber") {
+                    type = NavType.IntType
+                    defaultValue = -1
                 }
             )
         ) { backStackEntry ->
             val pageNumber = backStackEntry.arguments?.getInt("pageNumber") ?: 1
+            val surahNumber = backStackEntry.arguments?.getInt("surahNumber")?.takeIf { it > 0 }
             PageReadingScreen(
                 initialPage = pageNumber,
+                targetSurahNumber = surahNumber,
                 repository = repository,
                 readingPositionManager = readingPositionManager,
                 textSizeManager = textSizeManager,
