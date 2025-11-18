@@ -8,6 +8,7 @@ import quranapp.composeapp.generated.resources.Res
 
 class QuranRepository {
     private var cachedSurahs: List<Surah>? = null
+    private var cachedPageMapping: Map<Int, List<PageMapping>>? = null
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -24,6 +25,18 @@ class QuranRepository {
         val jsonString = bytes.decodeToString()
         cachedSurahs = json.decodeFromString<List<Surah>>(jsonString)
         return cachedSurahs!!
+    }
+
+    @OptIn(ExperimentalResourceApi::class)
+    private suspend fun loadPageMapping(): Map<Int, List<PageMapping>> {
+        if (cachedPageMapping != null) {
+            return cachedPageMapping!!
+        }
+
+        val bytes = Res.readBytes("files/page_mapping.json")
+        val jsonString = bytes.decodeToString()
+        cachedPageMapping = json.decodeFromString<Map<Int, List<PageMapping>>>(jsonString)
+        return cachedPageMapping!!
     }
 
     fun getAllSurahs(): Flow<List<Surah>> = flow {
@@ -50,15 +63,48 @@ class QuranRepository {
     }
 
     fun getPageContent(pageNumber: Int): Flow<PageContent> = flow {
-        // Note: Page information is not available in new JSON format
-        // This returns empty content - page reading feature will not work
-        emit(PageContent(pageNumber, emptyList()))
+        val surahs = loadQuranData()
+        val pageMapping = loadPageMapping()
+
+        val pageAyahs = pageMapping[pageNumber] ?: emptyList()
+        val ayahsWithSurahs = mutableListOf<AyahWithSurah>()
+
+        for (mapping in pageAyahs) {
+            val surah = surahs.find { it.number == mapping.surah }
+            if (surah != null) {
+                val ayah = surah.ayahs.find { it.numberInSurah == mapping.ayah }
+                if (ayah != null) {
+                    ayahsWithSurahs.add(AyahWithSurah(ayah, surah))
+                }
+            }
+        }
+
+        emit(PageContent(pageNumber, ayahsWithSurahs))
     }
 
     fun getAllPages(): Flow<Map<Int, PageContent>> = flow {
-        // Note: Page information is not available in new JSON format
-        // This returns empty map - page reading feature will not work
-        emit(emptyMap())
+        val surahs = loadQuranData()
+        val pageMapping = loadPageMapping()
+
+        val pagesMap = mutableMapOf<Int, PageContent>()
+
+        for ((pageNumber, mappings) in pageMapping) {
+            val ayahsWithSurahs = mutableListOf<AyahWithSurah>()
+
+            for (mapping in mappings) {
+                val surah = surahs.find { it.number == mapping.surah }
+                if (surah != null) {
+                    val ayah = surah.ayahs.find { it.numberInSurah == mapping.ayah }
+                    if (ayah != null) {
+                        ayahsWithSurahs.add(AyahWithSurah(ayah, surah))
+                    }
+                }
+            }
+
+            pagesMap[pageNumber] = PageContent(pageNumber, ayahsWithSurahs)
+        }
+
+        emit(pagesMap)
     }
 
     fun getTotalPages(): Flow<Int> = flow {
@@ -67,8 +113,18 @@ class QuranRepository {
     }
 
     fun getPageForSurah(surahNumber: Int): Flow<Int> = flow {
-        // Note: Page information is not available in new JSON format
-        // This returns 1 as default
+        val pageMapping = loadPageMapping()
+
+        // Find the first page that contains the first ayah of this surah
+        for ((pageNumber, mappings) in pageMapping) {
+            val firstAyahOfSurah = mappings.find { it.surah == surahNumber && it.ayah == 1 }
+            if (firstAyahOfSurah != null) {
+                emit(pageNumber)
+                return@flow
+            }
+        }
+
+        // Default to page 1 if not found
         emit(1)
     }
 }

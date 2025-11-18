@@ -65,3 +65,9 @@ data class AyahWithSurah(
     val ayah: Ayah,
     val surah: Surah
 )
+
+@Serializable
+data class PageMapping(
+    val surah: Int,
+    val ayah: Int
+)
