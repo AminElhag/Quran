@@ -33,22 +33,12 @@ fun AyahItem(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Ayah number and metadata
+        // Ayah number badge
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Juz and Page info
-            Text(
-                text = "الجزء ${ayah.juz} - الصفحة ${ayah.page}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Ayah number badge
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
