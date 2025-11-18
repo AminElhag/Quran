@@ -417,7 +417,9 @@ private fun TraditionalQuranPage(
                         .verticalScroll(scrollState)
                 ) {
                     // Build page content with traditional styling
+                    // Group ayahs by Surah to display each Surah's content together
                     var lastSurahNumber = -1
+                    val surahGroups = mutableListOf<Pair<AyahWithSurah, List<AyahWithSurah>>>()
 
                     pageContent.ayahs.forEach { ayahWithSurah ->
                         val isNewSurah = ayahWithSurah.ayah.numberInSurah == 1 &&
@@ -425,19 +427,44 @@ private fun TraditionalQuranPage(
 
                         if (isNewSurah) {
                             lastSurahNumber = ayahWithSurah.surah.number
+                            surahGroups.add(Pair(ayahWithSurah, mutableListOf()))
+                        }
+
+                        if (surahGroups.isNotEmpty()) {
+                            val currentGroup = surahGroups.last().second as MutableList
+                            currentGroup.add(ayahWithSurah)
+                        } else {
+                            // Page doesn't start with a new Surah, group all ayahs together
+                            if (surahGroups.isEmpty()) {
+                                surahGroups.add(Pair(ayahWithSurah, mutableListOf()))
+                            }
+                            val currentGroup = surahGroups.last().second as MutableList
+                            currentGroup.add(ayahWithSurah)
+                        }
+                    }
+
+                    // Display each Surah group with its header, Bismillah, and ayahs
+                    surahGroups.forEachIndexed { index, (firstAyah, ayahsInGroup) ->
+                        val isNewSurah = firstAyah.ayah.numberInSurah == 1
+
+                        if (isNewSurah) {
+                            // Add spacing between Surahs (except for the first one)
+                            if (index > 0) {
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
 
                             // Surah header with traditional styling
                             Box(
                                 modifier = Modifier
                                     .onGloballyPositioned { coordinates ->
                                         // If this is the target Surah, capture its Y position
-                                        if (targetSurahNumber == ayahWithSurah.surah.number) {
+                                        if (targetSurahNumber == firstAyah.surah.number) {
                                             targetSurahYPosition = coordinates.positionInParent().y
                                         }
                                     }
                             ) {
                                 OrnamentedSurahHeader(
-                                    surah = ayahWithSurah.surah,
+                                    surah = firstAyah.surah,
                                     textSizeMultiplier = textSizeMultiplier
                                 )
                             }
@@ -445,19 +472,19 @@ private fun TraditionalQuranPage(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             // Bismillah (except for At-Tawbah and Al-Fatiha)
-                            if (ayahWithSurah.surah.number != 9 && ayahWithSurah.surah.number != 1) {
+                            if (firstAyah.surah.number != 9 && firstAyah.surah.number != 1) {
                                 TraditionalBismillah(textSizeMultiplier = textSizeMultiplier)
                                 Spacer(modifier = Modifier.height(16.dp))
                             }
                         }
-                    }
 
-                    // Flowing Quranic text
-                    FlowingQuranText(
-                        ayahs = pageContent.ayahs,
-                        textSizeMultiplier = textSizeMultiplier,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        // Display ayahs for this Surah
+                        FlowingQuranText(
+                            ayahs = ayahsInGroup,
+                            textSizeMultiplier = textSizeMultiplier,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -585,21 +612,8 @@ private fun FlowingQuranText(
         // First pass: build the complete text and collect style information
         val styleRanges = mutableListOf<Triple<Int, Int, SpanStyle>>()
         val textBuilder = StringBuilder()
-        var lastSurahNumber = -1
 
-        ayahs.forEachIndexed { index, ayahWithSurah ->
-            val isNewSurah = ayahWithSurah.ayah.numberInSurah == 1 &&
-                             ayahWithSurah.surah.number != lastSurahNumber
-
-            if (isNewSurah) {
-                lastSurahNumber = ayahWithSurah.surah.number
-
-                // Don't add separator if this is the first ayah on the page
-                if (index > 0) {
-                    textBuilder.append("\n\n")
-                }
-            }
-
+        ayahs.forEach { ayahWithSurah ->
             // Add ayah text - plain text without Tajweed styling, preserving Ottoman script
             val startPos = textBuilder.length
             textBuilder.append(ayahWithSurah.ayah.text)
