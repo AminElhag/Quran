@@ -725,13 +725,14 @@ private fun PageNavigationBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // In RTL reading, previous page button should be on the right (first in Row for RTL layout)
             IconButton(
-                onClick = onNextPage,
-                enabled = currentPage < totalPages
+                onClick = onPreviousPage,
+                enabled = currentPage > 1
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "الصفحة التالية"
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "الصفحة السابقة"
                 )
             }
 
@@ -748,13 +749,14 @@ private fun PageNavigationBar(
                 )
             }
 
+            // In RTL reading, next page button should be on the left (last in Row for RTL layout)
             IconButton(
-                onClick = onPreviousPage,
-                enabled = currentPage > 1
+                onClick = onNextPage,
+                enabled = currentPage < totalPages
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "الصفحة السابقة"
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "الصفحة التالية"
                 )
             }
         }
